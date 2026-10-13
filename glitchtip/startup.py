@@ -73,7 +73,7 @@ def format_banner(info: dict) -> str:
 
     # Info lines to display next to logo
     info_lines = [
-        f"GlitchTip v{info['version']}",
+        f"Hawkeye v{info['version']}",
         "───────────────────────────────",
         f"URL:              {info['url']}",
         f"Email:            {info['email']}",

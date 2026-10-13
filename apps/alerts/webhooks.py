@@ -200,7 +200,7 @@ async def send_issue_as_webhook(
                 fields=fields,
             )
         )
-    message = "GlitchTip Alert"
+    message = "Hawkeye Alert"
     if issue_count > 1:
         message += f" ({issue_count} issues)"
     return await send_webhook(url, message, attachments)
@@ -267,7 +267,7 @@ async def send_issue_as_discord_webhook(
             )
         )
 
-    message = "GlitchTip Alert"
+    message = "Hawkeye Alert"
     if issue_count > 1:
         message += f" ({issue_count} issues)"
 
@@ -364,7 +364,7 @@ async def send_issue_as_googlechat_webhook(
     for issue in issues:
         tags = await gather_issue_tags(issue, tags_to_add)
         card = GoogleChatCard().construct_issue_card(
-            title="GlitchTip Alert",
+            title="Hawkeye Alert",
             issue=issue,
             tags=tags,
         )
@@ -398,7 +398,7 @@ async def send_issue_as_ntfy(
     tags_to_add: list[str] | None = None,
     **kwargs,
 ):
-    title = "GlitchTip Alert"
+    title = "Hawkeye Alert"
     if issue_count > 1:
         title += f" ({issue_count} issues)"
 
@@ -451,7 +451,7 @@ async def send_issue_as_teams_webhook(
     tags_to_add: list[str] | None = None,
     **kwargs,
 ):
-    title = "GlitchTip Alert"
+    title = "Hawkeye Alert"
     if issue_count > 1:
         title += f" ({issue_count} issues)"
 
@@ -510,7 +510,7 @@ async def send_issue_as_zulip(
     **kwargs,
 ):
     config = config or {}
-    title = "GlitchTip Alert"
+    title = "Hawkeye Alert"
     if issue_count > 1:
         title += f" ({issue_count} issues)"
 
@@ -531,7 +531,7 @@ async def send_issue_as_zulip(
         bot_email=config.get("bot_email", ""),
         api_key=config.get("api_key", ""),
         channel=config.get("channel", ""),
-        topic=config.get("topic", "GlitchTip Alerts"),
+        topic=config.get("topic", "Hawkeye Alerts"),
         content=content,
     )
 
@@ -547,7 +547,7 @@ async def send_issue_as_feishu_webhook(
     tags_to_add: list[str] | None = None,
     **kwargs,
 ):
-    title = "GlitchTip Alert"
+    title = "Hawkeye Alert"
     if issue_count > 1:
         title += f" ({issue_count} issues)"
 
@@ -658,7 +658,7 @@ async def send_issue_as_slack_webhook(
     tags_to_add: list[str] | None = None,
     **kwargs,
 ):
-    title = "GlitchTip Alert"
+    title = "Hawkeye Alert"
     if issue_count > 1:
         title += f" ({issue_count} issues)"
 
@@ -736,7 +736,7 @@ async def send_test_notification(
         return await handler(url, [issue], 1, tags_to_add=tags_to_add, config=config)
 
     # No issues yet — send a basic test via the low-level transport
-    title = "GlitchTip Test Notification"
+    title = "Hawkeye Test Notification"
     message = (
         f"Test notification for project {project.name}. "
         "Your alert recipient is configured correctly."
@@ -749,7 +749,7 @@ async def send_test_notification(
             bot_email=config.get("bot_email", ""),
             api_key=config.get("api_key", ""),
             channel=config.get("channel", ""),
-            topic=config.get("topic", "GlitchTip Alerts"),
+            topic=config.get("topic", "Hawkeye Alerts"),
             content=f"## {title}\n\n{message}",
         )
     elif recipient_type == RecipientType.NTFY:

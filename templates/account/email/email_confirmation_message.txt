@@ -1,6 +1,6 @@
 {% load account %}{% user_display user as user_display %}{% load i18n %}{% autoescape off %}
 
-Add Email to GlitchTip Account
+Add Email to Hawkeye Account
 
 {{ activate_url }}
  

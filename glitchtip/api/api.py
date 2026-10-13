@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 api = NinjaAPI(
     parser=ORJSONParser(),
-    title="GlitchTip API",
+    title="Hawkeye API",
     urls_namespace="api",
     auth=[TokenAuth(), SessionAuth()],
     openapi_url="/openapi.json" if settings.ENABLE_OPENAPI else None,

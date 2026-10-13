@@ -1,6 +1,6 @@
 {% load account %}{% user_display user as user_display %}{% load i18n %}{% autoescape off %}
 
-Verify Your GlitchTip Account Email
+Verify Your Hawkeye Account Email
 
 {{ activate_url }}
 

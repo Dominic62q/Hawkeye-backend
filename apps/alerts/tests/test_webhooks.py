@@ -46,7 +46,7 @@ ZULIP_TEST_CONFIG = {
     "bot_email": "bot@zulip.example.com",
     "api_key": "test-api-key",
     "channel": "alerts",
-    "topic": "GlitchTip Alerts",
+    "topic": "Hawkeye Alerts",
 }
 
 
@@ -91,7 +91,7 @@ class WebhookTestCase(GlitchTipTestCase):
         )
         self.monitor_check = baker.make(MonitorCheck, monitor=self.monitor)
 
-        self.expected_subject = "GlitchTip Uptime Alert"
+        self.expected_subject = "Hawkeye Uptime Alert"
         self.expected_message_down = "The monitored site has gone down."
         self.expected_message_up = "The monitored site is back up."
 
@@ -527,7 +527,7 @@ class WebhookTestCase(GlitchTipTestCase):
 
         mock_post.assert_called_once()
         call_kwargs = mock_post.call_args.kwargs
-        self.assertEqual(call_kwargs["headers"]["Title"], "GlitchTip Alert")
+        self.assertEqual(call_kwargs["headers"]["Title"], "Hawkeye Alert")
         self.assertEqual(call_kwargs["headers"]["Markdown"], "yes")
         body = call_kwargs["data"].decode("utf-8")
         self.assertIn(self.environment_name, body)
@@ -559,7 +559,7 @@ class WebhookTestCase(GlitchTipTestCase):
 
         mock_post.assert_called_once()
         call_kwargs = mock_post.call_args.kwargs
-        self.assertEqual(call_kwargs["headers"]["Title"], "GlitchTip Alert (2 issues)")
+        self.assertEqual(call_kwargs["headers"]["Title"], "Hawkeye Alert (2 issues)")
 
     @mock.patch("aiohttp.ClientSession")
     def test_send_uptime_events_ntfy(self, MockSession):
@@ -623,7 +623,7 @@ class WebhookTestCase(GlitchTipTestCase):
         )
         mock_post.assert_called_once()
         call_kwargs = mock_post.call_args.kwargs
-        self.assertEqual(call_kwargs["headers"]["Title"], "GlitchTip Alert")
+        self.assertEqual(call_kwargs["headers"]["Title"], "Hawkeye Alert")
         body = call_kwargs["data"].decode("utf-8")
         self.assertIn(str(issue), body)
 
@@ -638,7 +638,7 @@ class WebhookTestCase(GlitchTipTestCase):
         )
         mock_post.assert_called_once()
         json_data = json.dumps(mock_post.call_args.kwargs["json"])
-        self.assertIn("GlitchTip Test Notification", json_data)
+        self.assertIn("Hawkeye Test Notification", json_data)
         self.assertIn(self.project.name, json_data)
 
     @mock.patch("aiohttp.ClientSession")
@@ -652,7 +652,7 @@ class WebhookTestCase(GlitchTipTestCase):
         )
         mock_post.assert_called_once()
         call_kwargs = mock_post.call_args.kwargs
-        self.assertEqual(call_kwargs["headers"]["Title"], "GlitchTip Test Notification")
+        self.assertEqual(call_kwargs["headers"]["Title"], "Hawkeye Test Notification")
         body = call_kwargs["data"].decode("utf-8")
         self.assertIn(self.project.name, body)
 
@@ -667,7 +667,7 @@ class WebhookTestCase(GlitchTipTestCase):
         )
         mock_post.assert_called_once()
         json_data = json.dumps(mock_post.call_args.kwargs["json"])
-        self.assertIn("GlitchTip Test Notification", json_data)
+        self.assertIn("Hawkeye Test Notification", json_data)
         self.assertIn(self.project.name, json_data)
 
     @mock.patch("aiohttp.ClientSession")
@@ -681,7 +681,7 @@ class WebhookTestCase(GlitchTipTestCase):
         )
         mock_post.assert_called_once()
         json_data = json.dumps(mock_post.call_args.kwargs["json"])
-        self.assertIn("GlitchTip Test Notification", json_data)
+        self.assertIn("Hawkeye Test Notification", json_data)
         self.assertIn(self.project.name, json_data)
 
     @mock.patch("aiohttp.ClientSession")
@@ -700,7 +700,7 @@ class WebhookTestCase(GlitchTipTestCase):
         self.assertEqual(card["version"], "1.4")
 
         json_data = json.dumps(payload)
-        self.assertIn("GlitchTip Alert", json_data)
+        self.assertIn("Hawkeye Alert", json_data)
         self.assertIn(str(issue), json_data)
         self.assertIn(self.environment_name, json_data)
         self.assertIn(self.release_name, json_data)
@@ -731,7 +731,7 @@ class WebhookTestCase(GlitchTipTestCase):
 
         mock_post.assert_called_once()
         json_data = json.dumps(mock_post.call_args.kwargs["json"])
-        self.assertIn("GlitchTip Alert (2 issues)", json_data)
+        self.assertIn("Hawkeye Alert (2 issues)", json_data)
 
     @mock.patch("aiohttp.ClientSession")
     def test_send_uptime_events_teams_webhook(self, MockSession):
@@ -801,7 +801,7 @@ class WebhookTestCase(GlitchTipTestCase):
         payload = mock_post.call_args.kwargs["json"]
         self.assertEqual(payload["type"], "message")
         json_data = json.dumps(payload)
-        self.assertIn("GlitchTip Test Notification", json_data)
+        self.assertIn("Hawkeye Test Notification", json_data)
         self.assertIn(self.project.name, json_data)
 
     @mock.patch("aiohttp.ClientSession")
@@ -815,7 +815,7 @@ class WebhookTestCase(GlitchTipTestCase):
             "bot@zulip.example.com",
             "test-api-key",
             "alerts",
-            "GlitchTip Alerts",
+            "Hawkeye Alerts",
             "Hello from GlitchTip",
         )
         mock_post.assert_called_once()
@@ -826,7 +826,7 @@ class WebhookTestCase(GlitchTipTestCase):
         )
         self.assertEqual(call_kwargs["data"]["type"], "channel")
         self.assertEqual(call_kwargs["data"]["to"], "alerts")
-        self.assertEqual(call_kwargs["data"]["topic"], "GlitchTip Alerts")
+        self.assertEqual(call_kwargs["data"]["topic"], "Hawkeye Alerts")
         self.assertEqual(call_kwargs["data"]["content"], "Hello from GlitchTip")
 
     @mock.patch("aiohttp.ClientSession")
@@ -862,7 +862,7 @@ class WebhookTestCase(GlitchTipTestCase):
         )
         mock_post.assert_called_once()
         content = mock_post.call_args.kwargs["data"]["content"]
-        self.assertIn("GlitchTip Alert (2 issues)", content)
+        self.assertIn("Hawkeye Alert (2 issues)", content)
 
     @mock.patch("aiohttp.ClientSession")
     def test_send_uptime_events_zulip(self, MockSession):
@@ -924,7 +924,7 @@ class WebhookTestCase(GlitchTipTestCase):
         )
         mock_post.assert_called_once()
         content = mock_post.call_args.kwargs["data"]["content"]
-        self.assertIn("GlitchTip Test Notification", content)
+        self.assertIn("Hawkeye Test Notification", content)
         self.assertIn(self.project.name, content)
 
     @mock.patch("aiohttp.ClientSession")
@@ -939,7 +939,7 @@ class WebhookTestCase(GlitchTipTestCase):
         payload = mock_post.call_args.kwargs["json"]
         self.assertEqual(payload["msg_type"], "interactive")
         json_data = json.dumps(payload)
-        self.assertIn("GlitchTip Alert", json_data)
+        self.assertIn("Hawkeye Alert", json_data)
         self.assertIn(str(issue), json_data)
         self.assertIn(issue.project.name, json_data)
         self.assertIn(self.environment_name, json_data)
@@ -970,7 +970,7 @@ class WebhookTestCase(GlitchTipTestCase):
 
         mock_post.assert_called_once()
         json_data = json.dumps(mock_post.call_args.kwargs["json"])
-        self.assertIn("GlitchTip Alert (2 issues)", json_data)
+        self.assertIn("Hawkeye Alert (2 issues)", json_data)
 
     @mock.patch("aiohttp.ClientSession")
     def test_send_test_notification_with_issue_feishu(self, MockSession):
@@ -1001,7 +1001,7 @@ class WebhookTestCase(GlitchTipTestCase):
         payload = mock_post.call_args.kwargs["json"]
         self.assertEqual(payload["msg_type"], "interactive")
         json_data = json.dumps(payload)
-        self.assertIn("GlitchTip Test Notification", json_data)
+        self.assertIn("Hawkeye Test Notification", json_data)
         self.assertIn(self.project.name, json_data)
 
     @mock.patch("aiohttp.ClientSession")
@@ -1015,9 +1015,9 @@ class WebhookTestCase(GlitchTipTestCase):
         mock_post.assert_called_once()
         payload = mock_post.call_args.kwargs["json"]
         self.assertEqual(payload["blocks"][0]["type"], "header")
-        self.assertEqual(payload["blocks"][0]["text"]["text"], "GlitchTip Alert")
+        self.assertEqual(payload["blocks"][0]["text"]["text"], "Hawkeye Alert")
         # text is the notification preview, not rendered in-channel
-        self.assertIn("GlitchTip Alert", payload["text"])
+        self.assertIn("Hawkeye Alert", payload["text"])
         json_data = json.dumps(payload)
         self.assertIn(str(issue), json_data)
         self.assertIn(issue.get_detail_url(), json_data)
@@ -1051,7 +1051,7 @@ class WebhookTestCase(GlitchTipTestCase):
         mock_post.assert_called_once()
         payload = mock_post.call_args.kwargs["json"]
         json_data = json.dumps(payload)
-        self.assertIn("GlitchTip Alert (2 issues)", json_data)
+        self.assertIn("Hawkeye Alert (2 issues)", json_data)
         # A divider separates the issues, but does not lead the message
         self.assertEqual(
             [block["type"] for block in payload["blocks"]],
@@ -1153,7 +1153,7 @@ class WebhookTestCase(GlitchTipTestCase):
         payload = mock_post.call_args.kwargs["json"]
         self.assertEqual(payload["blocks"][0]["type"], "header")
         json_data = json.dumps(payload)
-        self.assertIn("GlitchTip Test Notification", json_data)
+        self.assertIn("Hawkeye Test Notification", json_data)
         self.assertIn(self.project.name, json_data)
 
     @mock.patch("aiohttp.ClientSession")

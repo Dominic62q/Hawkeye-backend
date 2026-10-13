@@ -1,4 +1,4 @@
-GlitchTip
+Hawkeye
 
 {% if issue_count == 1 %}
 Issue in {{ first_issue.project }}

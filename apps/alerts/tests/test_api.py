@@ -70,7 +70,7 @@ class AlertAPITestCase(GlitchTipTestCaseMixin, TestCase):
                 "botEmail": "bot@zulip.example.com",
                 "apiKey": "test-api-key",
                 "channel": "alerts",
-                "topic": "GlitchTip Alerts",
+                "topic": "Hawkeye Alerts",
                 "tagsToAdd": [],
             },
         ]
@@ -504,7 +504,7 @@ class AlertAPITestCase(GlitchTipTestCaseMixin, TestCase):
                     "botEmail": "bot@zulip.example.com",
                     "apiKey": "test-api-key",
                     "channel": "alerts",
-                    "topic": "GlitchTip Alerts",
+                    "topic": "Hawkeye Alerts",
                     "tagsToAdd": ["env"],
                 }
             ],
@@ -518,7 +518,7 @@ class AlertAPITestCase(GlitchTipTestCaseMixin, TestCase):
         self.assertEqual(recipient.config["bot_email"], "bot@zulip.example.com")
         self.assertEqual(recipient.config["api_key"], "test-api-key")
         self.assertEqual(recipient.config["channel"], "alerts")
-        self.assertEqual(recipient.config["topic"], "GlitchTip Alerts")
+        self.assertEqual(recipient.config["topic"], "Hawkeye Alerts")
         self.assertEqual(recipient.tags_to_add, ["env"])
         # Verify config is returned in API response
         res_data = res.json()
@@ -541,7 +541,7 @@ class AlertAPITestCase(GlitchTipTestCaseMixin, TestCase):
                 "bot_email": "bot@zulip.example.com",
                 "api_key": "old-key",
                 "channel": "alerts",
-                "topic": "GlitchTip Alerts",
+                "topic": "Hawkeye Alerts",
             },
         )
         url = reverse(
@@ -558,7 +558,7 @@ class AlertAPITestCase(GlitchTipTestCaseMixin, TestCase):
                     "botEmail": "bot@zulip.example.com",
                     "apiKey": "new-rotated-key",
                     "channel": "alerts",
-                    "topic": "GlitchTip Alerts",
+                    "topic": "Hawkeye Alerts",
                 }
             ],
         }
@@ -589,7 +589,7 @@ class AlertAPITestCase(GlitchTipTestCaseMixin, TestCase):
                 "bot_email": "bot@zulip.example.com",
                 "api_key": "test-key",
                 "channel": "alerts",
-                "topic": "GlitchTip Alerts",
+                "topic": "Hawkeye Alerts",
             },
         )
         url = reverse(

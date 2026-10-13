@@ -53,7 +53,7 @@ class ZulipAlertRecipientIn(CamelSchema):
     bot_email: str
     api_key: str
     channel: str
-    topic: str = "GlitchTip Alerts"
+    topic: str = "Hawkeye Alerts"
     tags_to_add: list[str] | None = Field(default_factory=list)
 
     @field_validator("url")

@@ -194,7 +194,7 @@ async def _send_uptime_zulip(recipient, alert: UptimeAlert):
         bot_email=config.get("bot_email", ""),
         api_key=config.get("api_key", ""),
         channel=config.get("channel", ""),
-        topic=config.get("topic", "GlitchTip Alerts"),
+        topic=config.get("topic", "Hawkeye Alerts"),
         content=content,
     )
 
@@ -224,7 +224,7 @@ async def send_uptime_as_webhook(
 
     alert = UptimeAlert(
         monitor=monitor_check.monitor,
-        subject="GlitchTip Uptime Alert",
+        subject="Hawkeye Uptime Alert",
         message=(
             "The monitored site has gone down."
             if went_down
