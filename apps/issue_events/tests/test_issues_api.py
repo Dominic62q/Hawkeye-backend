@@ -79,7 +79,8 @@ class IssueAPITestCase(GlitchTestCase):
         self.assertEqual(data.get("userReportCount"), 1)
         self.assertEqual(data.get("numComments"), 3)
         expected_permalink = (
-            f"{settings.GLITCHTIP_URL.geturl()}/{issue.project.slug}/issues/{issue.id}"
+            f"{settings.GLITCHTIP_URL.geturl()}"
+            f"/{self.organization.slug}/issues/{issue.id}"
         )
         self.assertEqual(data.get("permalink"), expected_permalink)
 

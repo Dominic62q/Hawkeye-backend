@@ -124,7 +124,8 @@ def with_issue_details(
     return qs.annotate(
         num_comments=Count("comments", distinct=True),
     ).select_related(
-        "project",
+        # The organization slug is needed for the issue permalink.
+        "project__organization",
         "first_release",
         "resolved_in_release",
         "assigned_to_org_user__user",
