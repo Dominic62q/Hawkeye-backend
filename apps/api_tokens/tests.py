@@ -61,3 +61,28 @@ class APITokenTests(TestCase):
 
         res = await self.async_client.get(self.url, **auth_headers)
         self.assertEqual(res.status_code, 401)
+
+
+class APITokenAdminTests(TestCase):
+    """The admin must never reveal a live token, in the list, the form or the admin log."""
+
+    def setUp(self):
+        self.admin_user = baker.make("users.user", is_staff=True, is_superuser=True)
+        self.client.force_login(self.admin_user)
+        self.api_token = baker.make("api_tokens.APIToken", label="ci")
+
+    def test_changelist_hides_token(self):
+        res = self.client.get(reverse("admin:api_tokens_apitoken_changelist"))
+        self.assertContains(res, "ci")
+        self.assertContains(res, self.api_token.token[-4:])
+        self.assertNotContains(res, self.api_token.token)
+
+    def test_change_form_hides_token(self):
+        res = self.client.get(
+            reverse("admin:api_tokens_apitoken_change", args=[self.api_token.pk])
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertNotContains(res, self.api_token.token)
+
+    def test_str_never_contains_token(self):
+        self.assertNotIn(self.api_token.token, str(self.api_token))

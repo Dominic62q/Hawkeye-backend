@@ -43,8 +43,14 @@ class APIToken(CreatedModel):
         )
     )
 
+    @property
+    def token_hint(self):
+        """Last four characters, safe to display and to write to logs."""
+        return f"…{self.token[-4:]}"
+
     def __str__(self):
-        return self.token
+        # Never the token itself: this ends up in admin dropdowns and django_admin_log.object_repr.
+        return f"{self.label or 'API token'} ({self.token_hint})"
 
     def get_scopes(self):
         """

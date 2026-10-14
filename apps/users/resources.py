@@ -10,10 +10,8 @@ class UserResource(resources.ModelResource):
         fields = (
             "id",
             # "password",
-            "is_superuser",
             "email",
             "name",
-            "is_staff",
             "is_active",
             "created",
         )
