@@ -14,6 +14,8 @@ Assumption: Hawkeye is operated for several customer organizations. If every cus
 
 **Phase 0 is configuration, not code**, and is tracked in [deployment-checklist.md](deployment-checklist.md): `ALLOWED_HOSTS`, MFA on the superuser account, a proxy allowlist for `/admin/` or `ENABLE_ADMIN=false`.
 
+**Operator console v1 is built** (section 3.7): a read-only UI at `/operator` in `hawkeye-ui`, backed by superuser-only endpoints in `apps/operator`.
+
 **Still open:** findings 2, 3 and 7 are not material with one superuser. Finding 4 is covered by the checklist. Finding 5's export and import remain available to the superuser by design.
 
 ## 1. What an operator can see today
@@ -92,8 +94,13 @@ New app, e.g. `apps/staff_audit`, with one append-only table:
 
 ### 3.7 Where it lives
 - Short term: keep Django admin as the operator tool. Optionally apply a minimal Hawkeye theme and set `GLITCHTIP_INSTANCE_NAME`.
-- Do not build it into `hawkeye-ui`. Keep it out of the customer bundle and clearly separate from the org-level "Admin" role.
-- Later, if Django admin becomes painful, add a small read-only operator console (usage, ingest health, queue lag) as a separate app. It would show metadata only.
+- **Decision: the console lives inside `hawkeye-ui` at `/operator`.** The original recommendation was a separate app on its own hostname, so it could be firewalled. The trade-off accepted instead: it is on the public host. What keeps that acceptable:
+  - The security gate is the backend, not the UI. `/api/0/operator/*` answers only an active superuser's browser session. API tokens never qualify, so a leaked token cannot read it. Hiding the UI is cosmetic.
+  - The whole console is one lazy chunk (about 13 kB), so ordinary users never download it.
+  - `operator` is a reserved organization slug, so no customer can take the URL.
+  - It is read-only and metadata-only. If it ever gains write actions, revisit the separate-host option first.
+- Built (v1, read-only): Overview (organization, user and project counts, ingest volume for 24 h and 30 days, organizations not accepting events), Organizations (search, status, members, projects, 30-day events), organization detail (current-period usage, members with roles, projects), Users (search, status, last sign-in). Backend: `apps/operator`.
+- Not built: write actions (suspend an organization, deactivate a user), an action log, queue and worker health. Django admin remains the tool for edits.
 
 ## 4. Suggested order (rough estimates)
 | Phase | Work | Rough size |

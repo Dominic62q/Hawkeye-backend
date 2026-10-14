@@ -397,6 +397,8 @@ class Organization(OrgScopedModel, SharedBaseModel, OrganizationBase):
             "stripe",
             "admin",
             "status_page",
+            # /operator is the operator console in the Hawkeye UI.
+            "operator",
             "__debug__",
             # /login/<org slug> is the per-organization login page; "finalize"
             # would shadow the /login/finalize social-auth callback route.

@@ -14,7 +14,7 @@ Settings that default to development-friendly values and must be set for product
 ## Operator admin (`/admin/`)
 
 - [ ] Decide whether the admin is needed in production. If not, set `ENABLE_ADMIN=false`.
-- [ ] If it is needed, restrict `/admin/` to your own IP at the reverse proxy.
+- [ ] If it is needed, restrict `/admin/` to your own IP at the reverse proxy. Do the same for the operator console: `/operator` (the UI) and `/api/0/operator/` (its API). The API already refuses anyone who is not a logged-in superuser, so the allowlist is an extra layer.
 - [ ] MFA is enabled on every superuser account (account settings, TOTP or WebAuthn). Admin login goes through allauth, so MFA applies once enabled.
 - [ ] Only the intended superuser(s) exist. Check with `python manage.py shell -c "from apps.users.models import User; print(list(User.objects.filter(is_superuser=True).values_list('email', flat=True)))"`.
 

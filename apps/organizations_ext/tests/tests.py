@@ -121,6 +121,13 @@ class OrganizationModelTestCase(TestCase):
         self.assertNotEqual(organization.slug, word)
         organization = await baker.amake("organizations_ext.Organization", name=word)
 
+    async def test_slug_reserves_operator_console_route(self):
+        """/operator is the operator console, so an organization must not take that slug"""
+        organization = await baker.amake(
+            "organizations_ext.Organization", name="operator"
+        )
+        self.assertNotEqual(organization.slug, "operator")
+
 
 class OrganizationRegistrationSettingQueryTestCase(TestCase):
     def setUp(self):
