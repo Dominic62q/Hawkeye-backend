@@ -5,6 +5,7 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.contrib.auth import SESSION_KEY
 from django.contrib.auth.models import AnonymousUser
+from django.core.cache import cache
 from django.http import HttpRequest
 from ninja.security import HttpBearer
 from ninja.security import SessionAuth as BaseSessionAuth
@@ -25,6 +26,27 @@ class AuthHttpRequest(HttpRequest):
     auth: Auth
 
 
+DEACTIVATED_USER_KEY = "users:deactivated:{}"
+
+
+async def block_user_sessions(user_id: int) -> None:
+    """
+    End a deactivated user's signed-in sessions for the API.
+
+    Sessions live in the cache, so they cannot be listed per user, and
+    SessionAuth deliberately avoids loading the user. A marker that outlives any
+    session takes its place: it is dropped on reactivation, and a cache flush that
+    loses it also loses the sessions.
+    """
+    await cache.aset(
+        DEACTIVATED_USER_KEY.format(user_id), 1, settings.SESSION_COOKIE_AGE
+    )
+
+
+async def allow_user_sessions(user_id: int) -> None:
+    await cache.adelete(DEACTIVATED_USER_KEY.format(user_id))
+
+
 class SessionAuth(BaseSessionAuth):
     """
     Check if user is logged in by checking session
@@ -38,7 +60,11 @@ class SessionAuth(BaseSessionAuth):
         # Django DB backed sessions don't support async yet
         else:
             user_id = await sync_to_async(request.session.get)(SESSION_KEY)
-        return Auth(int(user_id), "session") if user_id else None
+        if not user_id:
+            return None
+        if await cache.aget(DEACTIVATED_USER_KEY.format(user_id)):
+            return None
+        return Auth(int(user_id), "session")
 
 
 class TokenAuth(HttpBearer):

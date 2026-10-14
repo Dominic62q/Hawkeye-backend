@@ -10,6 +10,22 @@ class PageQuery(Schema):
     page: int = 1
 
 
+class IngestIn(Schema):
+    accepting: bool
+
+
+class ActiveIn(Schema):
+    active: bool
+
+
+class OrgIngestResult(CamelSchema):
+    is_accepting_events: bool
+
+
+class UserActiveResult(CamelSchema):
+    is_active: bool
+
+
 class CountsSchema(CamelSchema):
     total: int
     active: int

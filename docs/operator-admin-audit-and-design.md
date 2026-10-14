@@ -98,9 +98,13 @@ New app, e.g. `apps/staff_audit`, with one append-only table:
   - The security gate is the backend, not the UI. `/api/0/operator/*` answers only an active superuser's browser session. API tokens never qualify, so a leaked token cannot read it. Hiding the UI is cosmetic.
   - The whole console is one lazy chunk (about 13 kB), so ordinary users never download it.
   - `operator` is a reserved organization slug, so no customer can take the URL.
-  - It is read-only and metadata-only. If it ever gains write actions, revisit the separate-host option first.
-- Built (v1, read-only): Overview (organization, user and project counts, ingest volume for 24 h and 30 days, organizations not accepting events), Organizations (search, status, members, projects, 30-day events), organization detail (current-period usage, members with roles, projects), Users (search, status, last sign-in). Backend: `apps/operator`.
-- Not built: write actions (suspend an organization, deactivate a user), an action log, queue and worker health. Django admin remains the tool for edits.
+  - It shows metadata only, never customer content. It now has two write actions (below), so if it gains more, revisit the separate-host option first.
+- Built: Overview (organization, user and project counts, ingest volume for 24 h and 30 days, organizations not accepting events), Organizations (search, status, members, projects, 30-day events), organization detail (current-period usage, members with roles, projects), Users (search, status, last sign-in). Backend: `apps/operator`.
+- Actions, each behind a confirmation dialog and logged with the acting superuser (a `WARNING` line from `apps.operator.api`, not a durable audit table):
+  - **Pause or resume an organization's ingest** (`is_accepting_events`). Pausing takes effect on the next uncached request. Resuming can lag up to 30 seconds while the block cache expires.
+  - **Deactivate or reactivate a user.** You cannot deactivate yourself or another superuser (remove the superuser flag in Django admin first). Deactivating also ends the user's API sessions, see below.
+- **Side change to shared auth:** the API's `SessionAuth` read the user id from the session without loading the user, so deactivating a user did not end their signed-in API sessions (found by test: 200 instead of 401). Sessions live in the cache and cannot be listed per user, so deactivation now sets a cache marker that `SessionAuth` checks. It costs one cache read per session-authenticated request. Deactivating a user in Django admin does not set the marker, so use the console for that.
+- Not built: queue and worker health, a durable audit log. Django admin remains the tool for other edits.
 
 ## 4. Suggested order (rough estimates)
 | Phase | Work | Rough size |

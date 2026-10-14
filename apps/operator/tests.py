@@ -1,4 +1,6 @@
-from django.test import TestCase
+import logging
+
+from django.test import Client, TestCase
 from django.utils import timezone
 from model_bakery import baker
 
@@ -120,3 +122,131 @@ class OperatorAPITests(TestCase):
             "password",
         ):
             self.assertNotIn(secret, body)
+
+
+def ingest_url(org_id):
+    return f"{ORGS}{org_id}/ingest/"
+
+
+def active_url(user_id):
+    return f"{USERS}{user_id}/active/"
+
+
+class OperatorActionTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.superuser = baker.make("users.user", is_superuser=True, is_active=True)
+        cls.victim = baker.make("users.user", email="victim@customer.example")
+        cls.project = baker.make("projects.Project")
+        cls.organization = cls.project.organization
+        cls.organization.add_user(cls.victim, OrganizationUserRole.OWNER)
+
+    def post(self, url, body):
+        return self.client.post(url, body, content_type="application/json")
+
+    def test_actions_need_a_superuser(self):
+        calls = [
+            (ingest_url(self.organization.id), {"accepting": False}),
+            (active_url(self.victim.id), {"active": False}),
+        ]
+        for url, body in calls:
+            self.assertEqual(self.post(url, body).status_code, 401, url)
+        self.client.force_login(self.victim)
+        for url, body in calls:
+            self.assertEqual(self.post(url, body).status_code, 401, url)
+        self.organization.refresh_from_db()
+        self.victim.refresh_from_db()
+        self.assertTrue(self.organization.is_accepting_events)
+        self.assertTrue(self.victim.is_active)
+
+    def test_actions_reject_api_tokens(self):
+        token = baker.make(APIToken, user=self.superuser)
+        res = self.client.post(
+            ingest_url(self.organization.id),
+            {"accepting": False},
+            content_type="application/json",
+            headers={"Authorization": f"Bearer {token.token}"},
+        )
+        self.assertEqual(res.status_code, 401)
+
+    def test_pause_and_resume_ingest(self):
+        self.client.force_login(self.superuser)
+        res = self.post(ingest_url(self.organization.id), {"accepting": False})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json(), {"isAcceptingEvents": False})
+        self.organization.refresh_from_db()
+        self.assertFalse(self.organization.is_accepting_events)
+
+        listed = self.client.get(ORGS).json()["results"][0]
+        self.assertFalse(listed["isAcceptingEvents"])
+
+        res = self.post(ingest_url(self.organization.id), {"accepting": True})
+        self.assertEqual(res.json(), {"isAcceptingEvents": True})
+        self.organization.refresh_from_db()
+        self.assertTrue(self.organization.is_accepting_events)
+
+    def test_ingest_unknown_organization_is_404(self):
+        self.client.force_login(self.superuser)
+        res = self.post(ingest_url(999999), {"accepting": False})
+        self.assertEqual(res.status_code, 404)
+
+    def test_deactivate_and_reactivate_user(self):
+        self.client.force_login(self.superuser)
+        res = self.post(active_url(self.victim.id), {"active": False})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json(), {"isActive": False})
+        self.victim.refresh_from_db()
+        self.assertFalse(self.victim.is_active)
+
+        res = self.post(active_url(self.victim.id), {"active": True})
+        self.assertEqual(res.json(), {"isActive": True})
+        self.victim.refresh_from_db()
+        self.assertTrue(self.victim.is_active)
+
+    def test_deactivation_ends_signed_in_api_sessions(self):
+        """The API reads the user id from the session without loading the user."""
+        victim_client = Client()
+        victim_client.force_login(self.victim)
+        self.assertEqual(victim_client.get("/api/0/users/me/").status_code, 200)
+
+        self.client.force_login(self.superuser)
+        self.post(active_url(self.victim.id), {"active": False})
+        self.assertEqual(victim_client.get("/api/0/users/me/").status_code, 401)
+
+        self.post(active_url(self.victim.id), {"active": True})
+        self.assertEqual(victim_client.get("/api/0/users/me/").status_code, 200)
+
+    def test_cannot_deactivate_yourself(self):
+        self.client.force_login(self.superuser)
+        res = self.post(active_url(self.superuser.id), {"active": False})
+        self.assertEqual(res.status_code, 403)
+        self.superuser.refresh_from_db()
+        self.assertTrue(self.superuser.is_active)
+
+    def test_cannot_deactivate_another_superuser(self):
+        other = baker.make("users.user", is_superuser=True, is_active=True)
+        self.client.force_login(self.superuser)
+        res = self.post(active_url(other.id), {"active": False})
+        self.assertEqual(res.status_code, 403)
+        other.refresh_from_db()
+        self.assertTrue(other.is_active)
+
+    def test_unknown_user_is_404(self):
+        self.client.force_login(self.superuser)
+        self.assertEqual(
+            self.post(active_url(999999), {"active": False}).status_code, 404
+        )
+
+    def test_actions_are_logged_with_the_actor(self):
+        # settings.py globally disables WARNING-and-below while testing.
+        previous_disable = logging.root.manager.disable
+        logging.disable(logging.NOTSET)
+        self.addCleanup(logging.disable, previous_disable)
+        self.client.force_login(self.superuser)
+        with self.assertLogs("apps.operator.api", level="WARNING") as logs:
+            self.post(ingest_url(self.organization.id), {"accepting": False})
+            self.post(active_url(self.victim.id), {"active": False})
+        text = "\n".join(logs.output)
+        self.assertIn(f"user {self.superuser.id}", text)
+        self.assertIn(f"organization {self.organization.id}", text)
+        self.assertIn(f"user {self.victim.id}", text)

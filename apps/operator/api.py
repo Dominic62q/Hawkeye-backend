@@ -1,11 +1,15 @@
 """
-Read-only metadata for the operator console.
+Metadata and a few controls for the operator console.
 
 Everything here is superuser-only and session-only (no API tokens). It exposes who
 exists, how much they use and whether ingest is accepted. It never returns event
 content: no titles, stack traces, request data, logs or tokens.
+
+The only writes are pausing or resuming an organization's ingest and deactivating
+or reactivating a user. Each is logged with the acting superuser.
 """
 
+import logging
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -15,6 +19,7 @@ from django.http import HttpRequest
 from django.shortcuts import aget_object_or_404
 from django.utils import timezone
 from ninja import Query, Router
+from ninja.errors import HttpError
 
 from apps.organizations_ext.constants import OrganizationUserRole
 from apps.organizations_ext.models import (
@@ -31,15 +36,27 @@ from apps.projects.models import (
 )
 from apps.uptime.models import UptimeCheckHourlyStatistic
 from apps.users.models import User
-from glitchtip.api.authentication import Auth, SessionAuth
+from glitchtip.api.authentication import (
+    Auth,
+    AuthHttpRequest,
+    SessionAuth,
+    allow_user_sessions,
+    block_user_sessions,
+)
 
 from .schema import (
+    ActiveIn,
+    IngestIn,
     OperatorOrganizationDetailSchema,
     OperatorOrganizationPage,
     OperatorOverviewSchema,
     OperatorUserPage,
     PageQuery,
+    UserActiveResult,
+    OrgIngestResult,
 )
+
+logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 25
 USAGE_WINDOW_DAYS = 30
@@ -280,3 +297,54 @@ async def list_users(request: HttpRequest, query: Query[PageQuery]):
             for user in users
         ],
     }
+
+
+@router.post(
+    "operator/organizations/{int:org_id}/ingest/",
+    response=OrgIngestResult,
+    by_alias=True,
+)
+async def set_organization_ingest(
+    request: AuthHttpRequest, org_id: int, payload: IngestIn
+):
+    """Pause or resume an organization's event ingest. Resuming can lag by up to 30 seconds."""
+    org = await aget_object_or_404(Organization, id=org_id, is_deleted=False)
+    org.is_accepting_events = payload.accepting
+    await org.asave(update_fields=["is_accepting_events"])
+    logger.warning(
+        "operator action: user %s set ingest %s for organization %s",
+        request.auth.user_id,
+        "on" if payload.accepting else "off",
+        org.id,
+    )
+    return {"isAcceptingEvents": org.is_accepting_events}
+
+
+@router.post(
+    "operator/users/{int:user_id}/active/", response=UserActiveResult, by_alias=True
+)
+async def set_user_active(request: AuthHttpRequest, user_id: int, payload: ActiveIn):
+    """Deactivate or reactivate a user. Deactivating also ends their signed-in sessions."""
+    user = await aget_object_or_404(User, id=user_id)
+    if not payload.active:
+        if user.id == request.auth.user_id:
+            raise HttpError(403, "You can't deactivate your own account.")
+        if user.is_superuser:
+            raise HttpError(
+                403,
+                "Superusers can't be deactivated here. "
+                "Remove the superuser flag in Django admin first.",
+            )
+    user.is_active = payload.active
+    await user.asave(update_fields=["is_active"])
+    if payload.active:
+        await allow_user_sessions(user.id)
+    else:
+        await block_user_sessions(user.id)
+    logger.warning(
+        "operator action: user %s %s user %s",
+        request.auth.user_id,
+        "reactivated" if payload.active else "deactivated",
+        user.id,
+    )
+    return {"isActive": user.is_active}
