@@ -21,6 +21,20 @@ Settings that default to development-friendly values and must be set for product
 ## Before launch
 
 - [ ] Billing is off or intentionally on. It turns on only when both `STRIPE_PUBLIC_KEY` and `STRIPE_SECRET_KEY` are set (`glitchtip/settings.py:817`), so leave them unset to keep it off.
-- [ ] Email delivery works end to end (sign-up, password reset, invite) with the production sender.
+- [ ] Email delivery works end to end (sign-up, password reset, invite) with the production sender. Until then, accounts are not email-verified and the password reset flow is hidden, so a locked-out user needs a manual reset.
+  - Mailtrap, through its API: `EMAIL_BACKEND=anymail.backends.mailtrap.EmailBackend` and `MAILTRAP_API_TOKEN`. Add `MAILTRAP_SANDBOX_ID` to send to a Mailtrap test inbox instead of real recipients. Set `DEFAULT_FROM_EMAIL` to a sender Mailtrap allows (its demo sender, or an address on a verified domain). Any other provider's SMTP details also work through `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` and `EMAIL_USE_TLS`.
+- [ ] Decide who may sign up. `ENABLE_USER_REGISTRATION` defaults to on, so anyone who finds the URL can create an account. Set it to `false` for invite-only; the first user on an empty instance is still allowed.
 - [ ] Backups of the database are configured and a restore has been tried.
 - [ ] Startup logs show no `RuntimeWarning` about unsafe defaults.
+
+## Later: social sign-in
+
+Not used at launch: sign-in is email and password only. With no social application added, no social button shows on `/login` or `/signup`, so there is nothing to switch off. When you want it:
+
+- [ ] Create an OAuth app at the provider (Google Cloud Console credentials, GitHub OAuth Apps, Microsoft Entra app registrations, GitLab Applications). Google also needs its consent screen published, or only listed test users can sign in.
+- [ ] Register the callback URL exactly, with the trailing slash: `https://<your-domain>/accounts/<provider>/login/callback/` (for example `.../accounts/google/login/callback/`). Fix the production domain first.
+- [ ] In `/admin/`, add a Social application with the provider, a display name and the client id and secret. The row lives in the database, so each environment needs its own app and keys. Enter the secret yourself and never paste it into chat or commit it.
+- [ ] Provider settings that need environment variables: `SOCIALACCOUNT_PROVIDERS_microsoft_TENANT`, `SOCIALACCOUNT_PROVIDERS_gitlab_GITLAB_URL` for self-hosted GitLab, and the Gitea and Nextcloud equivalents.
+- [ ] The proxy forwards `/_allauth`, `/accounts`, `/api`, `/oauth`, `/admin` and `/static` to the backend, on the same host as the UI.
+- [ ] Decide whether social sign-up is open: `ENABLE_SOCIAL_APPS_USER_REGISTRATION` follows `ENABLE_USER_REGISTRATION` unless set. Existing users can sign in either way.
+- [ ] Test with real accounts: a new email, an email that already has a password account (no automatic linking is configured, so expect an error), and a superuser with MFA on. The hawkeye-ui has no screen yet for organization-managed SSO or for linking and unlinking providers on an account.
