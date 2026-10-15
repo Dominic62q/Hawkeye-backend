@@ -1,3 +1,5 @@
+import logging
+
 from allauth.account.internal.flows.login import record_authentication
 from allauth.socialaccount import app_settings as socialaccount_app_settings
 from allauth_async.account.adapter import AsyncDefaultAccountAdapter
@@ -14,6 +16,8 @@ from apps.users.utils import (
     org_social_app_exists,
 )
 from glitchtip.email import GlitchTipEmail
+
+logger = logging.getLogger(__name__)
 
 
 class CustomSocialAccountAdapter(AsyncDefaultSocialAccountAdapter):
@@ -83,6 +87,17 @@ class CustomDefaultAccountAdapter(AsyncDefaultAccountAdapter):
         if not settings.EMAIL_ENABLED:
             return
         return await super().asend_mail(template_prefix, email, context)
+
+    async def asend_confirmation_mail(self, request, emailconfirmation, signup):
+        # The confirmation is sent inline while an account is being created or
+        # signed in to. A refused or unreachable mail transport must not turn
+        # that into a 500 that leaves a half-finished sign-up behind. The
+        # account is created and the confirmation can be sent again later;
+        # verification is optional and never gates login.
+        try:
+            await super().asend_confirmation_mail(request, emailconfirmation, signup)
+        except Exception:
+            logger.exception("Could not send the email confirmation message")
 
     def render_mail(self, template_prefix, email, context, headers=None):
         headers = headers or {}

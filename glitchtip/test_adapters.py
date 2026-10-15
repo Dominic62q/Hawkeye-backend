@@ -11,10 +11,14 @@ callback 500s.
 """
 
 import asyncio
+import logging
+from smtplib import SMTPException
 
 import aiohttp
+from allauth.account.models import EmailAddress
 from allauth.socialaccount import app_settings as socialaccount_app_settings
-from django.test import SimpleTestCase
+from django.core.mail.backends.base import BaseEmailBackend
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from glitchtip.adapters import CustomSocialAccountAdapter
 
@@ -55,3 +59,49 @@ class OpenHttpSessionTestCase(SimpleTestCase):
                 await session.close()
 
         asyncio.run(run())
+
+
+class FailingEmailBackend(BaseEmailBackend):
+    """A transport that refuses every message, like a provider rejecting the
+    sender or an unreachable SMTP host."""
+
+    def send_messages(self, email_messages):
+        raise SMTPException("transport refused the message")
+
+
+@override_settings(EMAIL_BACKEND="glitchtip.test_adapters.FailingEmailBackend")
+class SignupSurvivesEmailFailureTestCase(TestCase):
+    """The confirmation mail is sent inline during signup. A failing mail
+    transport used to turn that into a 500 that still left the account
+    behind, so the user saw an error and could not retry the same address."""
+
+    signup_url = "/_allauth/browser/v1/auth/signup"
+    data = {"email": "newuser@example.com", "password": "hunter222"}
+
+    def test_signup_succeeds_when_the_confirmation_cannot_be_sent(self):
+        res = self.client.post(
+            self.signup_url, self.data, content_type="application/json"
+        )
+        self.assertEqual(res.status_code, 200)
+        address = EmailAddress.objects.get(email="newuser@example.com")
+        self.assertFalse(address.verified)
+
+    def test_the_failure_is_logged_not_swallowed_silently(self):
+        # Test settings disable logging below ERROR globally; this is an
+        # ERROR, so it is still captured.
+        with self.assertLogs("glitchtip.adapters", level=logging.ERROR) as logs:
+            self.client.post(
+                self.signup_url, self.data, content_type="application/json"
+            )
+        self.assertIn("email confirmation", logs.output[0])
+        self.assertIn("transport refused the message", "\n".join(logs.output))
+
+    def test_the_new_user_can_sign_in_without_verifying(self):
+        self.client.post(self.signup_url, self.data, content_type="application/json")
+        self.client.logout()
+        res = self.client.post(
+            "/_allauth/browser/v1/auth/login",
+            self.data,
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 200)
