@@ -1,0 +1,97 @@
+# Hawkeye on a shared Contabo host, behind its own Caddy.
+#
+# Only Caddy publishes a port (8090). Postgres, Valkey and the app live on the
+# private compose network. Every service has a memory cap and a log cap because
+# the host is shared and has no swap.
+name: hawkeye
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hawkeye
+      POSTGRES_DB: hawkeye
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command:
+      - postgres
+      # A query Postgres cannot narrow to one partition locks every partition
+      # and index, so the default of 64 is too low (matches the install docs).
+      - -c
+      - max_locks_per_transaction=512
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hawkeye -d hawkeye"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1g
+    logging: *logging
+
+  valkey:
+    image: valkey/valkey:9
+    restart: unless-stopped
+    # Holds the task queue and sessions as well as the cache, so persist it.
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+    logging: *logging
+
+  app:
+    build:
+      context: ./backend
+      args:
+        COLLECT_STATIC: "1"
+        GLITCHTIP_VERSION: ${GLITCHTIP_VERSION:-local}
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    volumes:
+      - uploads:/code/uploads
+    # First start runs the migrations, which can take a few minutes.
+    healthcheck:
+      test: ["CMD", "python", "healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    mem_limit: 2g
+    logging: *logging
+
+  caddy:
+    build:
+      context: .
+      dockerfile: caddy.Dockerfile
+    restart: unless-stopped
+    environment:
+      ALLOW_IPS: ${ALLOW_IPS}
+    depends_on:
+      - app
+    ports:
+      # IPv4 only: over IPv6 Docker hides the client address, which would break
+      # the allowlist.
+      - "0.0.0.0:8090:80"
+    mem_limit: 128m
+    logging: *logging
+
+volumes:
+  pgdata:
+  valkeydata:
+  uploads:

@@ -1,0 +1,45 @@
+{
+	# No domain yet, so no automatic HTTPS and no admin API.
+	admin off
+	auto_https off
+}
+
+:80 {
+	encode zstd gzip
+
+	# Public: endpoints that apps use to send data with a DSN key, the OTLP log
+	# endpoint, and uptime heartbeats. Each is authenticated by its own key.
+	@ingest path_regexp ^/api/[0-9]+/(envelope|store|security|minidump)/?$
+	@otlp path /v1/logs /v1/logs/
+	@heartbeat path_regexp ^/api/0/organizations/[^/]+/heartbeat_check/[0-9a-fA-F-]+/?$
+
+	handle @ingest {
+		reverse_proxy app:8000
+	}
+	handle @otlp {
+		reverse_proxy app:8000
+	}
+	handle @heartbeat {
+		reverse_proxy app:8000
+	}
+
+	# Everything else (the UI, the API, sign-in, /admin, /operator) is limited to
+	# the addresses in ALLOW_IPS, space separated. To change them, edit .env and
+	# run: docker compose up -d caddy
+	@allowed remote_ip {$ALLOW_IPS}
+	handle @allowed {
+		@backend path /api/* /_allauth/* /accounts/* /oauth/* /admin/* /static/* /stripe/*
+		handle @backend {
+			reverse_proxy app:8000
+		}
+		handle {
+			root * /srv
+			try_files {path} /index.html
+			file_server
+		}
+	}
+
+	handle {
+		respond "Forbidden" 403
+	}
+}
