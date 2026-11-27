@@ -12,6 +12,9 @@ x-environment: &default-environment
   GLITCHTIP_ENABLE_MCP: "true"
   GLITCHTIP_BOOTSTRAP_DEV: "true"
   GLITCHTIP_ENABLE_LOGS: "true"
+  OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
+  OPENCODE_API_URL: ${OPENCODE_API_URL:-https://opencode.ai/zen/go/v1/chat/completions}
+  OPENCODE_MODEL: ${OPENCODE_MODEL:-deepseek-v4.1-flash}
 
 x-depends_on: &default-depends_on
   - postgres
