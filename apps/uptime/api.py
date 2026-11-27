@@ -342,14 +342,19 @@ async def list_monitors(
     response: HttpResponse,
     organization_id_or_slug: str,
     sort: monitor_sort_options = "-created",
+    project: int | None = None,
 ):
     """
     List an organization's uptime monitors, newest first by default.
 
     ``sort`` accepts created, name, project and status; prefix with ``-`` to
-    reverse. Ascending status is down first.
+    reverse. Ascending status is down first. ``project`` limits the list to
+    one project's monitors.
     """
-    return sort_monitors(with_monitor_details(Monitor.objects.all()), sort)
+    monitors = Monitor.objects.all()
+    if project is not None:
+        monitors = monitors.filter(project_id=project)
+    return sort_monitors(with_monitor_details(monitors), sort)
 
 
 @router.get(

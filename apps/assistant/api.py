@@ -137,6 +137,14 @@ async def _allowed_tools(request, org_id: int) -> set[str]:
     return {name for name, required in TOOL_SCOPES.items() if scopes & required}
 
 
+async def _require_history_access(request, org_id: int) -> None:
+    """Saved answers may quote any tool, so reading them needs every tool's scope."""
+    if await _allowed_tools(request, org_id) != set(TOOL_SCOPES):
+        raise HttpError(
+            403, "Saved conversations need access to all assistant data sources."
+        )
+
+
 @sync_to_async
 def _save_turn(thread, latest_user, reply_text, session_id):
     with transaction.atomic():
@@ -292,6 +300,7 @@ async def list_threads(
 ):
     organization = await aget_object_or_404(qs.only("id"))
     await _require_enabled(organization.id)
+    await _require_history_access(request, organization.id)
     uid = _user_id(request)
     rows = (
         AssistantThread.objects.filter(organization_id=organization.id, user_id=uid)
@@ -322,6 +331,7 @@ async def get_thread(
     thread_id: uuid.UUID,
 ):
     organization = await aget_object_or_404(qs.only("id"))
+    await _require_history_access(request, organization.id)
     uid = _user_id(request)
     thread = await aget_object_or_404(
         AssistantThread.objects.filter(
@@ -467,7 +477,6 @@ async def assistant_chat(
                         "model": model,
                         "messages": messages,
                         "tools": available_tools,
-                        "max_tokens": 900,
                         "stream": True,
                     }
                     content_parts = []
