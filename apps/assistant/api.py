@@ -26,7 +26,6 @@ router = Router()
 
 DEFAULT_OPENCODE_URL = "https://opencode.ai/zen/go/v1/chat/completions"
 DEFAULT_OPENCODE_MODEL = "deepseek-v4.1-flash"
-MAX_TOOL_ROUNDS = 5
 
 
 class ChatMessage(Schema):
@@ -454,7 +453,7 @@ async def assistant_chat(
             "role": "system",
             "content": _build_system_prompt(organization.slug, payload.context),
         },
-        *[{"role": m.role, "content": m.content} for m in payload.messages[-20:]],
+        *[{"role": m.role, "content": m.content} for m in payload.messages],
     ]
 
     headers = {
@@ -469,10 +468,14 @@ async def assistant_chat(
         used_model = model
         try:
             yield _sse("status", {"message": "Thinking…"})
+            # No overall limit: a model may think and write for as long as it needs.
+            # Give up only when the provider goes silent for 5 minutes.
             async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=45)
+                timeout=aiohttp.ClientTimeout(
+                    total=None, sock_connect=30, sock_read=300
+                )
             ) as http:
-                for _ in range(MAX_TOOL_ROUNDS):
+                while True:
                     body = {
                         "model": model,
                         "messages": messages,
@@ -557,12 +560,6 @@ async def assistant_chat(
                         raise ValueError("Incomplete upstream response")
                     reply_text = "".join(content_parts)
                     break
-                else:
-                    reply_text = (
-                        "I gathered telemetry across multiple steps but hit the tool-call limit. "
-                        "Try narrowing your question to a specific issue, endpoint, or project."
-                    )
-                    yield _sse("text", {"text": reply_text})
 
             await _save_turn(thread, latest_user, reply_text, session_id)
             yield _sse(

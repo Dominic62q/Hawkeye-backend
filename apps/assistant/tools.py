@@ -94,12 +94,8 @@ def _redact(value: Any, *, scrub_pii: bool = True, depth: int = 0) -> Any:
                 out[k] = _redact(v, scrub_pii=scrub_pii, depth=depth + 1)
         return out
     if isinstance(value, (list, tuple)):
-        return [
-            _redact(item, scrub_pii=scrub_pii, depth=depth + 1) for item in value[:50]
-        ]
+        return [_redact(item, scrub_pii=scrub_pii, depth=depth + 1) for item in value]
     if isinstance(value, str):
-        if len(value) > 4000:
-            value = value[:4000] + "…[truncated]"
         return _scrub_text(value, scrub_pii=scrub_pii)
     return value
 
@@ -136,7 +132,7 @@ TOOLS: list[dict[str, Any]] = [
                         "type": "string",
                         "enum": ["-last_seen", "-first_seen", "-count", "-priority"],
                     },
-                    "limit": {"type": "integer", "minimum": 1, "maximum": 25},
+                    "limit": {"type": "integer", "minimum": 1},
                 },
             },
         },
@@ -172,7 +168,7 @@ TOOLS: list[dict[str, Any]] = [
                         "type": "string",
                         "enum": ["-avg_duration", "-count", "-created"],
                     },
-                    "limit": {"type": "integer", "minimum": 1, "maximum": 25},
+                    "limit": {"type": "integer", "minimum": 1},
                 },
             },
         },
@@ -186,7 +182,7 @@ TOOLS: list[dict[str, Any]] = [
                 "type": "object",
                 "properties": {
                     "project_slug": {"type": "string"},
-                    "min_occurrences": {"type": "integer", "minimum": 2, "maximum": 50},
+                    "min_occurrences": {"type": "integer", "minimum": 2},
                 },
             },
         },
@@ -216,7 +212,7 @@ TOOLS: list[dict[str, Any]] = [
                         "type": "string",
                         "description": "Comma-separated levels like 'error,fatal' or 'warn'.",
                     },
-                    "limit": {"type": "integer", "minimum": 1, "maximum": 30},
+                    "limit": {"type": "integer", "minimum": 1},
                 },
             },
         },
@@ -280,7 +276,7 @@ async def execute_tool(
                 project_slug=arguments.get("project_slug"),
                 query=arguments.get("query") or "is:unresolved",
                 sort=arguments.get("sort") or "-last_seen",
-                limit=min(int(arguments.get("limit") or 15), 25),
+                limit=int(arguments.get("limit") or 15),
             )
             payload = [mcp_serializers.serialize_issue(i) for i in issues]
 
@@ -316,7 +312,7 @@ async def execute_tool(
                 project_ids=[project_id] if project_id else None,
                 query=arguments.get("query"),
                 sort=arguments.get("sort") or "-avg_duration",
-                limit=min(int(arguments.get("limit") or 15), 25),
+                limit=int(arguments.get("limit") or 15),
             )
             payload = [mcp_serializers.serialize_transaction_group(g) for g in groups]
 
@@ -349,7 +345,7 @@ async def execute_tool(
                 project_id=project_id,
                 query=arguments.get("query"),
                 level=arguments.get("level"),
-                limit=min(int(arguments.get("limit") or 20), 30),
+                limit=int(arguments.get("limit") or 20),
             )
             payload = [mcp_serializers.serialize_log_event(log) for log in logs]
 
