@@ -704,6 +704,7 @@ INSTALLED_APPS += [
     "apps.event_ingest",
     "apps.mcp",
     "apps.oauth",
+    "apps.assistant",
     "import_export",  # Contains import management command, keep under apps.importer
 ]
 
