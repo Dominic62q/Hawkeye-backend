@@ -264,6 +264,8 @@ class AssistantAccessTests(TestCase):
 
     def _chat(self, request, payload, rounds, status=200, close_after=None):
         bodies = []
+        self_test = self
+        self.timeouts = []
 
         class Content:
             def __init__(self, data):
@@ -286,7 +288,7 @@ class AssistantAccessTests(TestCase):
 
         class Session:
             def __init__(self, **kwargs):
-                pass
+                self_test.timeouts.append(kwargs["timeout"])
 
             async def __aenter__(self):
                 return self
@@ -353,6 +355,19 @@ class AssistantAccessTests(TestCase):
                     self.assertNotIn("secret", json.dumps(events))
         self.assertEqual(AssistantThread.objects.count(), 1)
         self.assertFalse(AssistantMessage.objects.exists())
+
+    def test_long_answers_are_not_cut_off_by_a_total_timeout(self):
+        request = SimpleNamespace(
+            auth=SimpleNamespace(user_id=self.user.id, auth_type="session")
+        )
+        payload = ChatRequest(messages=[ChatMessage(role="user", content="hello")])
+        bodies, _ = self._chat(
+            request, payload, [_upstream([{"content": "ok"}], "stop")]
+        )
+        timeout = self.timeouts[0]
+        self.assertIsNone(timeout.total)
+        self.assertEqual(timeout.sock_read, 300)
+        self.assertNotIn("max_tokens", bodies[0])
 
     def test_authorized_tool_receives_fragmented_arguments(self):
         request = SimpleNamespace(
