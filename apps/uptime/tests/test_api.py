@@ -27,6 +27,25 @@ class UptimeAPITestCase(GlitchTestCase):
         self.async_client.force_login(self.user)
 
     @mock.patch("apps.uptime.tasks.perform_checks")
+    async def test_list_filters_by_project(self, _):
+        project = await baker.amake("projects.Project", organization=self.organization)
+        other = await baker.amake("projects.Project", organization=self.organization)
+        mine = await baker.amake(
+            "uptime.Monitor",
+            organization=self.organization,
+            project=project,
+            url="http://mine.example.com",
+        )
+        await baker.amake(
+            "uptime.Monitor",
+            organization=self.organization,
+            project=other,
+            url="http://other.example.com",
+        )
+        res = await self.async_client.get(self.list_url, {"project": project.id})
+        self.assertEqual([m["id"] for m in res.json()], [mine.id])
+
+    @mock.patch("apps.uptime.tasks.perform_checks")
     async def test_list(self, mocked):
         monitor = await baker.amake(
             "uptime.Monitor", organization=self.organization, url="http://example.com"

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 from asgiref.sync import async_to_sync
 from django.test import SimpleTestCase, TestCase
 from model_bakery import baker
+from ninja.errors import HttpError
 
 from apps.assistant.api import (
     ChatMessage,
@@ -14,6 +15,8 @@ from apps.assistant.api import (
     _save_turn,
     _upstream_events,
     assistant_chat,
+    get_thread,
+    list_threads,
 )
 from apps.assistant.models import AssistantMessage, AssistantThread
 from apps.assistant.tools import _redact, execute_tool
@@ -52,6 +55,29 @@ class ScrubbingTests(SimpleTestCase):
         for _ in range(12):
             value = {"nested": value}
         self.assertNotIn("deep-secret", json.dumps(_redact(value, scrub_pii=False)))
+
+    def test_alert_webhook_secrets_never_reach_the_model(self):
+        secret_url = "https://hooks.slack.com/services/T000/B000/SECRETVALUE"
+        recipient = SimpleNamespace(id=1, recipient_type="webhook", url=secret_url)
+        alert = SimpleNamespace(
+            id=1,
+            name="rule",
+            timespan_minutes=1,
+            quantity=1,
+            uptime=False,
+            environments=[],
+            alertrecipient_set=SimpleNamespace(all=lambda: [recipient]),
+        )
+        with patch(
+            "apps.assistant.tools.mcp_data.get_alerts",
+            new_callable=AsyncMock,
+            return_value=[alert],
+        ):
+            result = async_to_sync(execute_tool)(1, "org", "list_alerts", {})
+        self.assertNotIn("SECRETVALUE", result)
+        self.assertIn("WEBHOOK_URL", result)
+        text = _redact({"message": f"posting to {secret_url} failed"}, scrub_pii=False)
+        self.assertNotIn("SECRETVALUE", text["message"])
 
     def test_unknown_project_never_expands_telemetry_query(self):
         for name, target in [
@@ -100,6 +126,26 @@ class AssistantAccessTests(TestCase):
         self.assertNotIn("list_monitors", tools)
         other_org = baker.make("organizations_ext.Organization", slug="unrelated-org")
         self.assertEqual(async_to_sync(_allowed_tools)(request, other_org.id), set())
+
+    def test_saved_conversations_need_every_tool_scope(self):
+        thread = AssistantThread.objects.create(
+            organization=self.organization, user=self.user, title="Saved"
+        )
+        qs = type(self.organization).objects.filter(id=self.organization.id)
+        kwargs = {"qs": qs, "organization_id_or_slug": self.organization.slug}
+        narrow = SimpleNamespace(get_scopes=lambda: ["event:read"])
+        token = SimpleNamespace(
+            auth=SimpleNamespace(user_id=self.user.id, auth_type="token", data=narrow)
+        )
+        session = SimpleNamespace(
+            auth=SimpleNamespace(user_id=self.user.id, auth_type="session")
+        )
+        for view, extra in [(list_threads, {}), (get_thread, {"thread_id": thread.id})]:
+            with self.subTest(view=view.__name__):
+                with self.assertRaises(HttpError) as ctx:
+                    async_to_sync(view.__wrapped__)(token, **kwargs, **extra)
+                self.assertEqual(ctx.exception.status_code, 403)
+                async_to_sync(view.__wrapped__)(session, **kwargs, **extra)
 
     def test_issue_short_id_and_cross_org_numeric_id(self):
         issue = make_issue(project=self.project, title="Example", short_id=42)

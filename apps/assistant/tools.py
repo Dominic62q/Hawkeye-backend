@@ -1,6 +1,7 @@
 import json
 import re
 from typing import Any
+from urllib.parse import urlsplit
 
 from apps.mcp import data as mcp_data
 from apps.mcp import serializers as mcp_serializers
@@ -36,6 +37,12 @@ _RE_QS_SECRET = re.compile(
     r"([?&](?:token|key|secret|password|code|api_key|access_token|refresh_token)=)[^&\s\"'<>]+",
     re.IGNORECASE,
 )
+_RE_WEBHOOK = re.compile(
+    r"\bhttps?://(?:hooks\.slack\.com|(?:[\w-]+\.)?discord(?:app)?\.com/api/webhooks"
+    r"|chat\.googleapis\.com|[\w.-]*\.webhook\.office\.com|outlook\.office\.com/webhook)"
+    r"[^\s\"'<>]*",
+    re.IGNORECASE,
+)
 _RE_CREDENTIAL = re.compile(
     r"""(?i)\b(password|passwd|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token)\b(["']?\s*[:=]\s*["']?)([^'"\\\s,;&}]+)"""
 )
@@ -50,6 +57,7 @@ def _sensitive_key(key: str, scrub_pii: bool) -> bool:
 
 def _scrub_text(text: str, *, scrub_pii: bool) -> str:
     text = _RE_CONN.sub("[CONN_STRING]", text)
+    text = _RE_WEBHOOK.sub("[WEBHOOK_URL]", text)
     text = _RE_AUTH.sub(r"\1 [REDACTED]", text)
     text = _RE_QS_SECRET.sub(r"\1[REDACTED]", text)
     text = _RE_CREDENTIAL.sub(r"\1\2[REDACTED]", text)
@@ -57,6 +65,18 @@ def _scrub_text(text: str, *, scrub_pii: bool) -> str:
         text = _RE_EMAIL.sub("[EMAIL]", text)
         text = _RE_IPV4.sub("[IP]", text)
     return text
+
+
+def _mask_recipient_urls(alerts: list[dict[str, Any]]) -> None:
+    """Alert recipient URLs are webhook endpoints whose path is the secret."""
+    for alert in alerts:
+        for recipient in alert.get("alertRecipients", []):
+            url = recipient.get("url") or ""
+            parts = urlsplit(url)
+            if parts.scheme and parts.netloc:
+                recipient["url"] = f"{parts.scheme}://{parts.netloc}/[REDACTED]"
+            elif url:
+                recipient["url"] = "[REDACTED]"
 
 
 def _redact(value: Any, *, scrub_pii: bool = True, depth: int = 0) -> Any:
@@ -340,6 +360,7 @@ async def execute_tool(
                 project_slug=arguments.get("project_slug"),
             )
             payload = [mcp_serializers.serialize_alert(a) for a in alerts]
+            _mask_recipient_urls(payload)
 
         else:
             return json.dumps({"error": f"Unknown tool: {name}"})
